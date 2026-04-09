@@ -1,15 +1,22 @@
-﻿import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import Navbar from '../components/common/navbar';
-import Footer from '../components/common/Footer';
-import ResumeUpload from '../components/resume/ResumeUpload';
-import ResumePreview from '../components/resume/ResumePreview';
-import { useResume } from '../hooks/useResume';
-import { findMatches } from '../services/api';
-import { useJobs } from '../hooks/useJobs';
+﻿import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import Navbar from "../components/common/navbar";
+import Footer from "../components/common/Footer";
+import ResumeUpload from "../components/resume/ResumeUpload";
+import ResumePreview from "../components/resume/ResumePreview";
+import { useResume } from "../hooks/useResume";
+import { findMatches } from "../services/api";
+import { useJobs } from "../hooks/useJobs";
 
-const initialPrefs = { role: '', location: '', workType: 'all', experienceLevel: '', salary: '', industry: '' };
+const initialPrefs = {
+  role: "",
+  location: "",
+  workType: "all",
+  experienceLevel: "",
+  salary: "",
+  industry: "",
+};
 
 export default function UploadResume() {
   const navigate = useNavigate();
@@ -17,18 +24,20 @@ export default function UploadResume() {
   const [preferences, setPreferences] = useState(initialPrefs);
   const { setJobs, setProfileSummary, setLoading } = useJobs();
 
-  useEffect(() => { fetchResume(); }, []);
+  useEffect(() => {
+    fetchResume();
+  }, []);
 
   const handleFindMatches = async () => {
     try {
       setLoading(true);
       const res = await findMatches(preferences);
       setJobs(res.data.jobs || []);
-      setProfileSummary(res.data.profileSummary || '');
-      toast.success('Matches generated');
-      navigate('/matches');
+      setProfileSummary(res.data.profileSummary || "");
+      toast.success("Matches generated");
+      navigate("/matches");
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to find matches');
+      toast.error(error.response?.data?.message || "Failed to find matches");
     } finally {
       setLoading(false);
     }
@@ -47,11 +56,39 @@ export default function UploadResume() {
             {Object.keys(initialPrefs).map((key) => (
               <div key={key}>
                 <label className="label">{key}</label>
-                <input className="input" value={preferences[key]} onChange={(e) => setPreferences((p) => ({ ...p, [key]: e.target.value }))} />
+                {key === "workType" ? (
+                  <select
+                    className="input"
+                    value={preferences[key]}
+                    onChange={(e) =>
+                      setPreferences((p) => ({ ...p, [key]: e.target.value }))
+                    }
+                  >
+                    <option value="all">All</option>
+                    <option value="remote">Remote</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="on-site">On-site</option>
+                  </select>
+                ) : (
+                  <input
+                    className="input"
+                    value={preferences[key]}
+                    onChange={(e) =>
+                      setPreferences((p) => ({ ...p, [key]: e.target.value }))
+                    }
+                  />
+                )}
               </div>
             ))}
           </div>
-          <button type="button" className="btn-primary" onClick={handleFindMatches} disabled={loading}>Find My Matches</button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleFindMatches}
+            disabled={loading}
+          >
+            Find My Matches
+          </button>
         </section>
       </main>
       <Footer />

@@ -1,4 +1,5 @@
 const axios = require("axios");
+const mammoth = require("mammoth");
 const Resume = require("../models/Resume");
 const { parsePDF } = require("../services/pdfParser.service");
 const { parseResume: parseWithAI } = require("../services/gemini.service");
@@ -61,6 +62,17 @@ const parseResumeFallback = (text) => {
   };
 };
 
+const parseDocx = async (fileUrl) => {
+  const response = await axios.get(fileUrl, { responseType: "arraybuffer" });
+  const result = await mammoth.extractRawText({
+    buffer: Buffer.from(response.data),
+  });
+  return (result?.value || "").trim();
+};
+
+const buildExtractionFallbackText = (fileName) =>
+  `Resume uploaded: ${fileName || "resume"}. Text extraction was limited, so a minimal profile was created. You can improve matching by pasting resume text.`;
+
 const uploadResume = async (req, res) => {
   try {
     if (!req.file)
@@ -74,6 +86,11 @@ const uploadResume = async (req, res) => {
         responseType: "arraybuffer",
       });
       rawText = await parsePDF(Buffer.from(response.data));
+    } else if (
+      req.file.mimetype ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      rawText = await parseDocx(req.file.path);
     } else if (req.file.mimetype === "text/plain") {
       const response = await axios.get(req.file.path, { responseType: "text" });
       rawText = response.data;
@@ -81,29 +98,32 @@ const uploadResume = async (req, res) => {
       rawText = "";
     }
 
-    if (!rawText || rawText.trim().length < 50) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Could not extract text from resume",
-        });
-    }
-
     let parsedData;
     let parsingWarning = null;
-    try {
-      parsedData = await parseWithAI(rawText);
-    } catch (aiError) {
-      parsedData = parseResumeFallback(rawText);
-      parsingWarning = `AI parsing unavailable: ${aiError.message}`;
+    const extractedText = String(rawText || "").trim();
+    const hasUsableExtractedText = extractedText.length >= 25;
+    const persistedRawText = hasUsableExtractedText
+      ? extractedText
+      : buildExtractionFallbackText(req.file.originalname);
+
+    if (!hasUsableExtractedText) {
+      parsedData = parseResumeFallback(persistedRawText);
+      parsingWarning =
+        "Could not extract enough readable text from the file. Uploaded with a minimal parsed profile. For best results, paste resume text in the Paste tab.";
+    } else {
+      try {
+        parsedData = await parseWithAI(extractedText);
+      } catch (aiError) {
+        parsedData = parseResumeFallback(extractedText);
+        parsingWarning = `AI parsing unavailable: ${aiError.message}`;
+      }
     }
     await Resume.updateMany({ userId: req.user._id }, { isActive: false });
     const resume = await Resume.create({
       userId: req.user._id,
       fileName: req.file.originalname,
       fileUrl: req.file.path,
-      rawText,
+      rawText: persistedRawText,
       parsedData,
       isActive: true,
     });
@@ -159,8 +179,13 @@ const pasteResume = async (req, res) => {
 
 const getMyResume = async (req, res) => {
   const resume = await Resume.findOne({ userId: req.user._id, isActive: true });
-  if (!resume)
-    return res.status(404).json({ success: false, message: "No resume found" });
+  if (!resume) {
+    return res.json({
+      success: true,
+      resume: null,
+      message: "No resume found",
+    });
+  }
   return res.json({ success: true, resume });
 };
 

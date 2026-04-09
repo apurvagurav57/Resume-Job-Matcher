@@ -20,39 +20,6 @@ const fallbackSummary = (parsedData) => {
   return `Candidate has ${years} years of experience with strengths in ${skills.join(", ") || "software development"}. Recommended roles are prioritized by skill alignment and profile fit.`;
 };
 
-const generateFallbackJobs = (parsedData, preferences) => {
-  const roleBase =
-    preferences?.role ||
-    parsedData?.jobTitles?.[0] ||
-    parsedData?.skills?.[0] ||
-    "Software Engineer";
-  const location = preferences?.location || "India";
-  const topSkills = uniq(parsedData?.skills || []).slice(0, 10);
-
-  const companies = [
-    "Turing Labs",
-    "ByteScale",
-    "CloudNest",
-    "NovaTech",
-    "Aster Systems",
-    "CodeOrbit",
-    "DataForge",
-    "PixelStack",
-  ];
-  return companies.map((company, i) => ({
-    jobId: `fallback-${Date.now()}-${i}`,
-    title: `${roleBase}`,
-    company,
-    location,
-    salary: "Not specified",
-    workType: preferences?.workType === "remote" ? "Remote" : "On-site",
-    postedAt: new Date(Date.now() - i * 86400000).toISOString(),
-    applyLink: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(roleBase)}`,
-    requiredSkills: topSkills.slice(i % 3, (i % 3) + 5),
-    description: `${company} is hiring for ${roleBase}. Looking for hands-on contributors with practical product engineering experience.`,
-  }));
-};
-
 const scoreJobsFallback = (parsedData, jobs, preferences) => {
   const resumeSkills = (parsedData?.skills || []).map((s) =>
     String(s).toLowerCase(),
@@ -128,12 +95,29 @@ const findMatches = async (req, res) => {
         preferences.workType,
       );
     } catch (error) {
-      warnings.push(`JSearch unavailable: ${error.message}`);
+      const status = error.statusCode || 500;
+      if (status === 401 || status === 403) {
+        return res.status(502).json({
+          success: false,
+          message:
+            error.message ||
+            "RapidAPI JSearch access failed. Please verify your RapidAPI subscription/key and try again.",
+          details: error.message,
+        });
+      }
+
+      return res.status(502).json({
+        success: false,
+        message: "JSearch API is temporarily unavailable. Please try again.",
+        details: error.message,
+      });
     }
 
     if (!Array.isArray(rawJobs) || rawJobs.length === 0) {
-      source = "fallback";
-      rawJobs = generateFallbackJobs(resume.parsedData || {}, preferences);
+      return res.status(404).json({
+        success: false,
+        message: "No jobs found from JSearch API for the selected criteria.",
+      });
     }
 
     let profileSummary = fallbackSummary(resume.parsedData || {});

@@ -29,7 +29,7 @@ export const getProfile = () => api.get("/auth/me");
 
 export const uploadResume = (formData) =>
   api.post("/resume/upload", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+    headers: { "Content-Type": undefined },
   });
 export const pasteResume = (text) => api.post("/resume/paste", { text });
 export const getMyResume = () => api.get("/resume/me");
