@@ -21,6 +21,9 @@ const allowedOrigins = (
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const isLocalDevOrigin = (origin) =>
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(
@@ -29,6 +32,9 @@ app.use(
       // Allow server-to-server and tools that don't send Origin.
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (process.env.NODE_ENV !== "production" && isLocalDevOrigin(origin)) {
+        return callback(null, true);
+      }
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,

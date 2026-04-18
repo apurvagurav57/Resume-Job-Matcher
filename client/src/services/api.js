@@ -36,6 +36,7 @@ export const getMyResume = () => api.get("/resume/me");
 
 export const findMatches = (preferences) =>
   api.post("/jobs/match", preferences);
+export const getLatestMatches = () => api.get("/jobs/latest");
 export const saveJob = (jobId) => api.post(`/jobs/save/${jobId}`);
 export const getSavedJobs = () => api.get("/jobs/saved");
 

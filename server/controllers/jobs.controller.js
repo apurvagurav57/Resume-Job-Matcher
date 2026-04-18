@@ -155,6 +155,7 @@ const findMatches = async (req, res) => {
       userId: req.user._id,
       resumeId: resume._id,
       preferences,
+      profileSummary,
       jobs: mergedJobs,
     });
     return res.json({
@@ -178,9 +179,32 @@ const saveJob = async (req, res) => {
   return res.json({ success: true, message: "Job saved" });
 };
 
+const getLatestMatches = async (req, res) => {
+  const latestMatch = await JobMatch.findOne({ userId: req.user._id })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  if (!latestMatch) {
+    return res.status(404).json({
+      success: false,
+      message: "No saved matches found",
+    });
+  }
+
+  return res.json({
+    success: true,
+    profileSummary:
+      latestMatch.profileSummary ||
+      `Loaded ${latestMatch.jobs?.length || 0} saved job matches from your latest search.`,
+    jobs: latestMatch.jobs || [],
+    preferences: latestMatch.preferences || {},
+    createdAt: latestMatch.createdAt,
+  });
+};
+
 const getSavedJobs = async (req, res) => {
   const user = await User.findById(req.user._id);
   return res.json({ success: true, savedJobs: user.savedJobs });
 };
 
-module.exports = { findMatches, saveJob, getSavedJobs };
+module.exports = { findMatches, saveJob, getSavedJobs, getLatestMatches };

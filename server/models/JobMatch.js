@@ -20,6 +20,7 @@ const JobMatchSchema = new mongoose.Schema(
       salary: String,
       industry: String,
     },
+    profileSummary: String,
     jobs: [
       {
         jobId: String,

@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/common/navbar";
 import Footer from "../components/common/Footer";
 import { useAuth } from "../hooks/useAuth";
+import { useJobs } from "../hooks/useJobs";
 import { getApplications, getMyResume } from "../services/api";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { jobs } = useJobs();
   const [resume, setResume] = useState(null);
   const [applications, setApplications] = useState([]);
 
@@ -25,11 +27,11 @@ export default function Dashboard() {
       (a) => a.status === "interview",
     ).length;
     return {
-      totalMatches: resume ? 1 : 0,
+      totalMatches: jobs.length,
       totalApplications: applications.length,
       interviews,
     };
-  }, [applications, resume]);
+  }, [applications, jobs.length]);
 
   return (
     <div className="min-h-screen bg-bg">
