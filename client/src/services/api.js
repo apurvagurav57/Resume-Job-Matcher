@@ -1,7 +1,11 @@
 import axios from "axios";
 
+const defaultApiBase = import.meta.env.PROD
+  ? "https://resume-job-matcher-quzh.onrender.com/api"
+  : "http://localhost:5000/api";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: import.meta.env.VITE_API_URL || defaultApiBase,
   timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });

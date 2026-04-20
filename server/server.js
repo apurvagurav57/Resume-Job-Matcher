@@ -12,17 +12,35 @@ connectDB();
 
 const app = express();
 
-const allowedOrigins = (
-  process.env.CLIENT_URLS ||
-  process.env.CLIENT_URL ||
-  "http://localhost:5173"
-)
+const normalizeOrigin = (origin = "") =>
+  origin
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/\/+$/, "");
+
+const defaultOrigins = [
+  "https://resumejobmatcher-puce.vercel.app",
+  "https://resumejobmatcher-git-main-apurvagurav57s-projects.vercel.app",
+  "https://resumejobmatcher-afbgradec-apurvagurav57s-projects.vercel.app",
+  "http://localhost:5173",
+];
+
+const envOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "")
   .split(",")
-  .map((origin) => origin.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
+
+const allowedOrigins = new Set(
+  [...defaultOrigins, ...envOrigins].map(normalizeOrigin).filter(Boolean),
+);
 
 const isLocalDevOrigin = (origin) =>
   /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+const isTrustedVercelPreviewOrigin = (origin) =>
+  /^https:\/\/resumejobmatcher(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(
+    normalizeOrigin(origin),
+  );
 
 app.use(helmet());
 app.use(morgan("dev"));
@@ -31,7 +49,8 @@ app.use(
     origin: (origin, callback) => {
       // Allow server-to-server and tools that don't send Origin.
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (allowedOrigins.has(normalizeOrigin(origin))) return callback(null, true);
+      if (isTrustedVercelPreviewOrigin(origin)) return callback(null, true);
       if (process.env.NODE_ENV !== "production" && isLocalDevOrigin(origin)) {
         return callback(null, true);
       }

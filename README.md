@@ -72,6 +72,24 @@ Backend: `http://localhost:5000`
 
 ## Deployment Guide
 
+## Production URLs
+
+- Frontend (Primary): `https://resumejobmatcher-puce.vercel.app`
+- Frontend (Preview): `https://resumejobmatcher-git-main-apurvagurav57s-projects.vercel.app`
+- Frontend (Preview): `https://resumejobmatcher-afbgradec-apurvagurav57s-projects.vercel.app`
+- Backend: `https://resume-job-matcher-quzh.onrender.com`
+- Backend Health: `https://resume-job-matcher-quzh.onrender.com/health`
+
+## Production Environment Setup
+
+### Render Backend Environment Variables
+
+- `CLIENT_URLS=https://resumejobmatcher-puce.vercel.app,https://resumejobmatcher-git-main-apurvagurav57s-projects.vercel.app,https://resumejobmatcher-afbgradec-apurvagurav57s-projects.vercel.app`
+
+### Vercel Frontend Environment Variables
+
+- `VITE_API_URL=https://resume-job-matcher-quzh.onrender.com/api`
+
 ### Render (Backend)
 
 1. Create a new Web Service on Render from this repo.
