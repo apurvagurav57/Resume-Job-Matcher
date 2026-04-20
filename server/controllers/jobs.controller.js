@@ -1,6 +1,9 @@
 const Resume = require("../models/Resume");
 const JobMatch = require("../models/JobMatch");
-const { searchJobs } = require("../services/jsearch.service");
+const {
+  searchJobs,
+  sanitizeApplyLink,
+} = require("../services/jsearch.service");
 const { scoreJobs } = require("../services/gemini.service");
 const User = require("../models/User");
 
@@ -196,7 +199,10 @@ const getLatestMatches = async (req, res) => {
     profileSummary:
       latestMatch.profileSummary ||
       `Loaded ${latestMatch.jobs?.length || 0} saved job matches from your latest search.`,
-    jobs: latestMatch.jobs || [],
+    jobs: (latestMatch.jobs || []).map((job) => ({
+      ...job,
+      applyLink: sanitizeApplyLink(job.applyLink, job.company),
+    })),
     preferences: latestMatch.preferences || {},
     createdAt: latestMatch.createdAt,
   });

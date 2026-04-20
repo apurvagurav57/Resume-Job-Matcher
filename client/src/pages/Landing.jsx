@@ -40,7 +40,7 @@ export default function Landing() {
       <main className="mx-auto max-w-7xl space-y-16 px-4 py-14">
         <section className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/20 to-transparent p-10 text-center">
           <h1 className="text-4xl font-bold leading-tight md:text-6xl">
-            Match Your Resume to Dream Jobs with AI
+            ResuMatch: Find Jobs That Match Your Resume
           </h1>
           <p className="mx-auto mt-4 max-w-3xl text-lg text-gray-300">
             ResuMatch analyzes your resume, compares it against real openings,

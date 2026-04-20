@@ -51,6 +51,153 @@ const inferWorkType = (job) => {
   return "On-site";
 };
 
+const AGGREGATOR_HOST_HINTS = [
+  "linkedin.com",
+  "indeed.com",
+  "glassdoor.com",
+  "ziprecruiter.com",
+  "cutshort.io",
+  "foundit.",
+  "shine.com",
+  "wellfound.com",
+  "instahyre.com",
+  "monster.",
+  "naukri.com",
+  "timesjobs.com",
+  "simplyhired.com",
+  "jooble.",
+  "careerjet.",
+  "talent.com",
+  "jobrapido.",
+  "adzuna.",
+  "google.com",
+  "googleapis.com",
+];
+
+const TRUSTED_ATS_HINTS = [
+  "greenhouse.io",
+  "lever.co",
+  "myworkdayjobs.com",
+  "smartrecruiters.com",
+  "ashbyhq.com",
+  "jobvite.com",
+  "icims.com",
+  "bamboohr.com",
+  "oraclecloud.com",
+];
+
+const normalizeDomainToken = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+const parseLink = (value) => {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return new URL(value.trim());
+  } catch {
+    return null;
+  }
+};
+
+const isAggregatorHost = (host) =>
+  AGGREGATOR_HOST_HINTS.some((hint) => host.includes(hint));
+
+const isTrustedAtsHost = (host) =>
+  TRUSTED_ATS_HINTS.some((hint) => host.includes(hint));
+
+const isLikelyCompanyHost = (host, company) => {
+  const token = normalizeDomainToken(company);
+  if (!token || token.length < 4) return false;
+  return host.replace(/[^a-z0-9]/g, "").includes(token);
+};
+
+const isAllowedApplyHost = (host, company) => {
+  if (!host) return false;
+  if (isAggregatorHost(host)) return false;
+  if (isTrustedAtsHost(host)) return true;
+  return isLikelyCompanyHost(host, company);
+};
+
+const sanitizeApplyLink = (url, company) => {
+  const parsed = parseLink(url);
+  if (!parsed) return "";
+  const host = parsed.hostname.toLowerCase();
+  return isAllowedApplyHost(host, company) ? parsed.toString() : "";
+};
+
+const getApplyCandidates = (job) => {
+  const options = Array.isArray(job?.apply_options) ? job.apply_options : [];
+
+  const optionCandidates = options
+    .map((opt) => {
+      if (!opt || typeof opt !== "object") return null;
+      const link =
+        opt.apply_link ||
+        opt.link ||
+        opt.url ||
+        (typeof opt.publisher === "string" && opt.publisher.startsWith("http")
+          ? opt.publisher
+          : "");
+      if (!link) return null;
+
+      return {
+        url: link,
+        source: opt.publisher || "apply_option",
+        isDirect: Boolean(opt.is_direct),
+      };
+    })
+    .filter(Boolean);
+
+  const topLevelCandidates = [
+    { url: job?.job_apply_link, source: "job_apply_link", isDirect: false },
+    { url: job?.job_offer_link, source: "job_offer_link", isDirect: true },
+    {
+      url: job?.employer_website,
+      source: "employer_website",
+      isDirect: true,
+    },
+    { url: job?.job_google_link, source: "job_google_link", isDirect: false },
+  ].filter((item) => item.url);
+
+  return [...optionCandidates, ...topLevelCandidates];
+};
+
+const pickBestApplyLink = (job) => {
+  const candidates = getApplyCandidates(job);
+  if (!candidates.length) return "";
+
+  const scored = candidates
+    .map((candidate) => {
+      const parsed = parseLink(candidate.url);
+      if (!parsed) return null;
+
+      const host = parsed.hostname.toLowerCase();
+      const aggregator = isAggregatorHost(host);
+      let score = 0;
+
+      if (candidate.isDirect) score += 120;
+      if (parsed.protocol === "https:") score += 8;
+      if (isLikelyCompanyHost(host, job?.employer_name)) score += 80;
+      if (isTrustedAtsHost(host)) score += 65;
+      if (aggregator) score -= 120;
+
+      return {
+        url: parsed.toString(),
+        score,
+        aggregator,
+        host,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score);
+
+  const preferred = scored.find((candidate) =>
+    isAllowedApplyHost(candidate.host, job?.employer_name),
+  );
+  return preferred?.url || "";
+};
+
 const searchJobs = async (query, location, workType = "all") => {
   const normalizedWorkType = normalizeWorkType(workType);
   const role = String(query || "Software Engineer").trim();
@@ -109,7 +256,7 @@ const searchJobs = async (query, location, workType = "all") => {
             ? `${job.job_min_salary || ""}-${job.job_max_salary || ""} ${job.job_salary_currency || ""}`.trim()
             : "Not specified",
           postedAt: job.job_posted_at_datetime_utc,
-          applyLink: job.job_apply_link,
+          applyLink: pickBestApplyLink(job),
           description: job.job_description?.substring(0, 500),
           requiredSkills: job.job_required_skills || [],
         };
@@ -140,4 +287,4 @@ const searchJobs = async (query, location, workType = "all") => {
   }
 };
 
-module.exports = { searchJobs };
+module.exports = { searchJobs, sanitizeApplyLink };
